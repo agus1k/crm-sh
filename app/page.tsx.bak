@@ -1,0 +1,241 @@
+"use client"
+
+import { useState, useCallback } from "react"
+import type {
+  FormState,
+  Sector,
+  Profesional,
+  DatosEmpresa,
+  ExtintorExistente,
+  InstalacionContraIncendio,
+  DatosEvacuacion,
+} from "@/lib/types"
+import { DEFAULT_FORM_STATE, STEPS } from "@/lib/store"
+import { calcularTodo } from "@/lib/calculos"
+
+import { StepIndicator } from "@/components/step-indicator"
+import { StepEmpresa } from "@/components/steps/step-empresa"
+import { StepProfesionales } from "@/components/steps/step-profesionales"
+import { StepSectores } from "@/components/steps/step-sectores"
+import { StepMateriales } from "@/components/steps/step-materiales"
+import { StepExtintores } from "@/components/steps/step-extintores"
+import { StepEvacuacion } from "@/components/steps/step-evacuacion"
+import { StepResultados } from "@/components/steps/step-resultados"
+import { StepInforme } from "@/components/steps/step-informe"
+
+import { Button } from "@/components/ui/button"
+import { ChevronLeft, ChevronRight, Calculator, Flame } from "lucide-react"
+
+export default function CargaDeFuegoApp() {
+  const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE)
+
+  const currentStep = formState.currentStep
+
+  const setStep = useCallback((step: number) => {
+    setFormState((prev) => ({ ...prev, currentStep: step }))
+  }, [])
+
+  const updateEmpresa = useCallback((data: DatosEmpresa) => {
+    setFormState((prev) => ({ ...prev, empresa: data }))
+  }, [])
+
+  const updateProfesionales = useCallback((data: Profesional[]) => {
+    setFormState((prev) => ({ ...prev, profesionales: data }))
+  }, [])
+
+  const updateSectores = useCallback((data: Sector[]) => {
+    setFormState((prev) => ({ ...prev, sectores: data }))
+  }, [])
+
+  const updateExtintores = useCallback((data: ExtintorExistente[]) => {
+    setFormState((prev) => ({ ...prev, extintoresExistentes: data }))
+  }, [])
+
+  const updateInstalaciones = useCallback(
+    (data: InstalacionContraIncendio[]) => {
+      setFormState((prev) => ({
+        ...prev,
+        instalacionesContraIncendio: data,
+      }))
+    },
+    []
+  )
+
+  const updateEvacuacion = useCallback((data: DatosEvacuacion[]) => {
+    setFormState((prev) => ({ ...prev, datosEvacuacion: data }))
+  }, [])
+
+  const runCalculations = useCallback(() => {
+    const resultados = calcularTodo(
+      formState.sectores,
+      formState.extintoresExistentes,
+      formState.datosEvacuacion
+    )
+    setFormState((prev) => ({
+      ...prev,
+      resultados,
+      currentStep: 6,
+    }))
+  }, [
+    formState.sectores,
+    formState.extintoresExistentes,
+    formState.datosEvacuacion,
+  ])
+
+  const goNext = () => {
+    if (currentStep === 5) {
+      runCalculations()
+    } else if (currentStep < STEPS.length - 1) {
+      setStep(currentStep + 1)
+    }
+  }
+
+  const goPrev = () => {
+    if (currentStep > 0) setStep(currentStep - 1)
+  }
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <StepEmpresa data={formState.empresa} onChange={updateEmpresa} />
+        )
+      case 1:
+        return (
+          <StepProfesionales
+            data={formState.profesionales}
+            onChange={updateProfesionales}
+          />
+        )
+      case 2:
+        return (
+          <StepSectores
+            data={formState.sectores}
+            onChange={updateSectores}
+          />
+        )
+      case 3:
+        return (
+          <StepMateriales
+            sectores={formState.sectores}
+            onChange={updateSectores}
+          />
+        )
+      case 4:
+        return (
+          <StepExtintores
+            sectores={formState.sectores}
+            extintores={formState.extintoresExistentes}
+            instalaciones={formState.instalacionesContraIncendio}
+            onChangeExtintores={updateExtintores}
+            onChangeInstalaciones={updateInstalaciones}
+          />
+        )
+      case 5:
+        return (
+          <StepEvacuacion
+            sectores={formState.sectores}
+            data={formState.datosEvacuacion}
+            onChange={updateEvacuacion}
+          />
+        )
+      case 6:
+        return (
+          <StepResultados
+            resultados={formState.resultados}
+            sectores={formState.sectores}
+          />
+        )
+      case 7:
+        return <StepInforme formState={formState} />
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Top Bar */}
+      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground">
+            <Flame className="h-5 w-5" />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-sm font-bold text-foreground leading-tight">
+              Estudio de Carga de Fuego
+            </h1>
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              Dec. 351/79 - Ley 19.587
+            </p>
+          </div>
+          <div className="ml-auto text-xs text-muted-foreground hidden sm:block">
+            {formState.empresa.nombre && (
+              <span className="font-medium text-foreground">
+                {formState.empresa.nombre}
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        {/* Step Indicator */}
+        <div className="mb-8">
+          <StepIndicator currentStep={currentStep} onStepClick={setStep} />
+        </div>
+
+        {/* Step Header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-foreground text-balance">
+            {STEPS[currentStep].label}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {STEPS[currentStep].description}
+            <span className="text-xs ml-2">
+              {"("}Paso {currentStep + 1} de {STEPS.length}{")"}
+            </span>
+          </p>
+        </div>
+
+        {/* Step Content */}
+        <div className="mb-8">{renderStep()}</div>
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between pt-4 border-t border-border">
+          <Button
+            variant="outline"
+            onClick={goPrev}
+            disabled={currentStep === 0}
+            className="gap-1.5 bg-transparent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Anterior
+          </Button>
+
+          <div className="flex items-center gap-3">
+            {currentStep === 5 && (
+              <Button onClick={runCalculations} className="gap-1.5">
+                <Calculator className="h-4 w-4" />
+                Calcular Resultados
+              </Button>
+            )}
+            {currentStep < STEPS.length - 1 && (
+              <Button onClick={goNext} className="gap-1.5">
+                {currentStep === 5 ? "Calcular y Continuar" : "Siguiente"}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border mt-12 py-4">
+        <div className="max-w-6xl mx-auto px-4 text-center text-xs text-muted-foreground">
+          {"Sistema de automatizacion de informes tecnicos | Dec. 351/79 - Ley 19.587 | Uso profesional exclusivo"}
+        </div>
+      </footer>
+    </div>
+  )
+}
